@@ -1,74 +1,77 @@
 #!/bin/sh
 
 SHOWSSL=TRUE
-MESSAGE="The get script is setup to not show ssl private.key or certificate.crt... Change SNOWSSL to TRUE the /usr/local/bin/drupal9get script."
-
-INSTALL_DIR="/usr/local/www/drupal9/"
+MESSAGE="Can not show ssl private.key or certificate.crt... Change SNOWSSL to TRUE the /usr/local/bin/drupal9get script."
+DRUPAL_VER=drupal9
 
 get_all()
 {
-  get_sslkey
-  get_sslcert
-  get_drupaltrust
-  get_apacheconf
+	get_sslkey
+	get_sslcert
+	get_drupaltrust
+	get_apacheconf
 }
 
 get_sslkey()
 {
-  if [ $SHOWSSL = TRUE ] ; then
-    sslkey=$(cat /usr/local/etc/apache24/ssl/private.key)
-  else
-    sslkey=$MESSAGE
-  fi
-  echo "$sslkey"
+	if [ $SHOWSSL = TRUE ] ; then
+		sslkey=$(cat /usr/local/etc/apache24/ssl/private.key)
+	else
+		sslkey=$MESSAGE
+	fi
+	echo "$sslkey"
 }
 
 get_sslcert()
 {
-  if [ $SHOWSSL = TRUE ] ; then
-    sslcert=$(cat /usr/local/etc/apache24/ssl/certificate.crt)
-  else
-    sslcert=$MESSAGE
-  fi
-  echo "$sslcert"
+	if [ $SHOWSSL = TRUE ] ; then
+		sslcert=$(cat /usr/local/etc/apache24/ssl/certificate.crt)
+	else
+		sslcert=$MESSAGE
+	fi
+	echo "$sslcert"
 }
 
 get_drupaltrust()
 {
-  drupaltrust=$(sed -n -e '/^\$settings\['\''trusted_host_patterns'\''] = \[$/,/^];$/{ /^\$settings\['\''trusted_host_patterns'\''] = \[$/d; /^];$/d; p; }' \
-  ${INSTALL_DIR)sites/default/settings.php)
-  echo "$drupaltrust"
+	drupaltrust=$(sed -n -e '/^\$settings\['\''trusted_host_patterns'\''] = \[$/,/^];$/{ /^\$settings\['\''trusted_host_patterns'\''] = \[$/d; /^];$/d; p; }' \
+		/usr/local/www/drupal9/sites/default/settings.php)
+	echo "$drupaltrust"
 }
 
 get_apacheconf()
 {
-  apacheconf=$(cat /usr/local/etc/apache24/Includes/drupal.conf)
-  echo "$apacheconf"
+	apacheconf=$(cat /usr/local/etc/apache24/Includes/drupal.conf)
+	echo "$apacheconf"
 }
 
 get_update()
 {
-  cd ${INSTALL_DIR)
+	cd /usr/local/www/${DRUPAL_VER}/
 
-  echo "Going into maintenance mode."
-  drush sset system.maintenance_mode 1
-  drush cache-rebuild
-  
-  echo "Doing Update."
-  composer update drupal/core "drupal/core-*" --with-all-dependencies
-  
-  echo "Leaving maintenance mode."
-  drush sset system.maintenance_mode 0
-  drush cache-rebuild
+	echo "Going into maintenance mode."
+	drush sset system.maintenance_mode 1
+	drush cache-rebuild
+
+	echo "Doing Update."
+	composer update drupal/core "drupal/core-*" --with-all-dependencies
+
+	echo "Leaving maintenance mode."
+	# drush database update not working?
+	# drush updatedb
+	# drush sset system.maintenance_mode 0
+	drush cache-rebuild
+	echo "Please go to your website status report and update your database."
+	echo "check your website and exit maintenance mode."
 }
 
 # Stub for something which gets quasselsettings
 case $1 in
-  getall) get_all ;;
+	getall) get_all ;;
 	sslkey) get_sslkey ;;
 	sslcert) get_sslcert ;;
 	drupaltrust) get_drupaltrust ;;
-  apacheconf) get_apacheconf ;;
-  update) get_update ;;
+	apacheconf) get_apacheconf ;;
+	update) get_update ;;
 	*) echo "Unknown option" ;;
 esac

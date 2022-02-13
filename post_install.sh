@@ -19,8 +19,7 @@ IP_ADDRESS=$(ifconfig | grep -E 'inet.[0-9]' | grep -v '127.0.0.1' | awk '{ prin
 
 IP_ESC=$(echo $IP_ADDRESS | sed 's/\./\\./g')
 
-# mysql config
- 
+# mysql config 
 service mysql-server start
 
 MYSQL_PASS=$(tail -1 /root/.mysql_secret)
@@ -42,70 +41,69 @@ grant all privileges on ${DRUPAL_DB}.* to ${DRUPAL_DB_USER}@localhost identified
 flush privileges;
 \q
 EOF
-      
+
 service mysql-server restart
 
 # drupal config
-
 mkdir -p /usr/local/www/$DRUPAL_VER/sites/default/files/private
 
 echo "Drupal Config Starting...."
 DRUPAL_ADMIN=$(drush -y site-install standard -r /usr/local/www/${DRUPAL_VER} \
-  --db-url="mysql://${DRUPAL_DB_USER}:${DRUPAL_DB_USER_PASS}@localhost/${DRUPAL_DB}" \
-  --site-name=${MY_SERVER_NAME} 2>&1 | grep password)
+	--db-url="mysql://${DRUPAL_DB_USER}:${DRUPAL_DB_USER_PASS}@localhost/${DRUPAL_DB}" \
+	--site-name=${MY_SERVER_NAME} 2>&1 | grep password)
 echo "Drupal Config Ending....."
 echo $DRUPAL_ADMIN
 DRUPAL_ADMIN=$(echo $DRUPAL_ADMIN | awk '{ print $8}')
-  
+
 cat >> /usr/local/www/$DRUPAL_VER/sites/default/settings.php << EOF
 \$settings['trusted_host_patterns'] = [
-  '^$MY_SERVER_NAME_ESC$',
-  '^localhost$',
-  '^$IP_ESC$',
-  '^127\.0\.0\.1$',
+	'^$MY_SERVER_NAME_ESC$',
+	'^localhost$',
+	'^$IP_ESC$',
+	'^127\.0\.0\.1$',
 ];
 EOF
 
 chown -R www:www /usr/local/www/$DRUPAL_VER/
-  
+
 cat > /usr/local/etc/apache24/Includes/drupal.conf <<EOF
 <VirtualHost *:80>
-  ServerName $MY_SERVER_NAME
-  
-  DocumentRoot /usr/local/www/$DRUPAL_VER
-  <Directory "/usr/local/www/$DRUPAL_VER">
-    Options Indexes FollowSymLinks
-    AllowOverride All
-    Require all granted
-  </Directory>
+	ServerName $MY_SERVER_NAME
+
+	DocumentRoot /usr/local/www/$DRUPAL_VER
+	<Directory "/usr/local/www/$DRUPAL_VER">
+		Options Indexes FollowSymLinks
+		AllowOverride All
+		Require all granted
+	</Directory>
 </VirtualHost>
 <VirtualHost *:443>
-  ServerName $MY_SERVER_NAME
-  
-  SSLEngine on
-  SSLCertificateFile "/usr/local/etc/apache24/ssl/certificate.crt"
+	ServerName $MY_SERVER_NAME
 
-  SSLCertificateKeyFile "/usr/local/etc/apache24/ssl/private.key"
+	SSLEngine on
+	SSLCertificateFile "/usr/local/etc/apache24/ssl/certificate.crt"
 
-  DocumentRoot /usr/local/www/$DRUPAL_VER
-  <Directory "/usr/local/www/$DRUPAL_VER">
-    Options Indexes FollowSymLinks
-    AllowOverride All
-    Require all granted
-  </Directory>
+	SSLCertificateKeyFile "/usr/local/etc/apache24/ssl/private.key"
+
+	DocumentRoot /usr/local/www/$DRUPAL_VER
+	<Directory "/usr/local/www/$DRUPAL_VER">
+		Options Indexes FollowSymLinks
+		AllowOverride All
+		Require all granted
+	</Directory>
 </VirtualHost>
 EOF
 
 # apache config
 sed -i.bak '/^#LoadModule ssl_module libexec\/apache24\/mod_ssl.so/s/^#//g' /usr/local/etc/apache24/httpd.conf
-  
+
 mkdir -p /usr/local/etc/apache24/ssl
 cd /usr/local/etc/apache24/ssl
 
 openssl genrsa -out private.key 2048
-  
+
 openssl req -new -x509 -days 365 -key private.key -out certificate.crt -sha256 -subj "/C=CA/ST=ONTARIO/L=TORONTO/O=Global Security/OU=IT Department/CN=${MY_SERVER_NAME}"
-  
+
 cat > /usr/local/etc/apache24/modules.d/020_mod_ssl.conf <<EOF
 Listen 443
 
@@ -117,15 +115,23 @@ SSLPassPhraseDialog builtin
 
 SSLSessionCacheTimeout 300
 EOF
-  
+
 sed -i.bak '/^#LoadModule rewrite_module libexec\/apache24\/mod_rewrite.so/s/^#//g' /usr/local/etc/apache24/httpd.conf
-  
+
 sed -i.bak '/^#LoadModule mime_magic_module libexec\/apache24\/mod_mime_magic.so/s/^#//g' /usr/local/etc/apache24/httpd.conf
-    
+
 sed -i.bak '/AddType application\/x-httpd-php .php/d' /usr/local/etc/apache24/httpd.conf
 sed -i.bak '/\<IfModule mime_module\>/a\
 AddType application/x-httpd-php .php
 ' /usr/local/etc/apache24/httpd.conf
+
+sed -i.bak 's|"sort-packages": true|"sort-packages": true, \
+        "allow-plugins": { \
+            "composer/installers": true, \
+            "drupal/core-composer-scaffold": true, \
+            "drupal/core-project-message": true, \
+            "drupal/core-vendor-hardening": true \
+        }|' /usr/local/www/drupal9/composer.json
 
 # Start the service
 service apache24 restart 2>/dev/null
@@ -135,3 +141,4 @@ echo -e "${DRUPAL_VER} now installed.\n" > /root/PLUGIN_INFO
 echo -e "\nYour MySQL Root password is \"${MYSQL_ROOT_PASS}\".\n" >> /root/PLUGIN_INFO
 echo -e "\nYour Drupal Database password is \"${DRUPAL_DB_USER_PASS}\".\n" >> /root/PLUGIN_INFO
 echo -e "\nDrupal Admin user Password is \"${DRUPAL_ADMIN}\".\n" >> /root/PLUGIN_INFO
+echo -e "\nGo to https://${IP_ADDRESS} login and finish setup.\n" >> /root/PLUGIN_INFO

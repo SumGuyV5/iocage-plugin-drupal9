@@ -58,11 +58,14 @@ get_update()
 
 	echo "Leaving maintenance mode."
 	# drush database update not working?
-	# drush updatedb
-	# drush sset system.maintenance_mode 0
+	drush updatedb
+	drush sset system.maintenance_mode 0
 	drush cache-rebuild
-	echo "Please go to your website status report and update your database."
-	echo "check your website and exit maintenance mode."
+
+	drush cron
+
+	# echo "Please go to your website status report and update your database."
+	# echo "check your website and exit maintenance mode."
 }
 
 # Stub for something which gets quasselsettings

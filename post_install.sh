@@ -1,5 +1,13 @@
 #!/bin/sh -x
 
+mkdir /usr/local/etc/drush
+cd /usr/local/etc/drush
+composer require drush/drush:8.4.10 -W
+
+ln -s /usr/local/etc/drush/vendor/bin/drush /usr/local/bin/drush
+
+cd /
+
 # Enable the service
 sysrc apache24_enable="YES"
 sysrc mysql_enable="YES"
@@ -136,6 +144,8 @@ sed -i.bak 's|"sort-packages": true|"sort-packages": true, \
 # Start the service
 service apache24 restart 2>/dev/null
 service mysql-server restart 2>/dev/null
+
+drupal9get update
 
 echo -e "${DRUPAL_VER} now installed.\n" > /root/PLUGIN_INFO
 echo -e "\nYour MySQL Root password is \"${MYSQL_ROOT_PASS}\".\n" >> /root/PLUGIN_INFO
